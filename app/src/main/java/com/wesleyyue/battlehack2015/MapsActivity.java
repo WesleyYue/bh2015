@@ -25,6 +25,7 @@ import com.loopj.android.http.AsyncHttpResponseHandler;
 import com.loopj.android.http.RequestParams;
 import com.loopj.android.http.TextHttpResponseHandler;
 import com.parse.FindCallback;
+import com.parse.GetCallback;
 import com.parse.Parse;
 import com.parse.ParseException;
 import com.parse.ParseObject;
@@ -32,6 +33,7 @@ import com.parse.ParseQuery;
 
 import org.apache.http.Header;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
@@ -40,7 +42,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
 
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private String braintree_token;
-    private static String server_domain = "http://mighty-retreat-5059.herokuapp.com";
+    private static String server_domain = "http://mighty-retreat-5059.herokuapp.com/";
     private static final int BRAINTREE_REQUEST_CODE = 100;
     private View BottomSlideOut;
     private static boolean peeking_info_pane = false;
@@ -49,6 +51,8 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     private static final int peeking_height = 300;
     private static final int expanded_height = info_pane_height - peeking_height;
     private boolean in_rent_mode = false;
+
+    ParseObject currently_selected_bike;
 
     HashMap<String, ParseObject> marker_info;
 
@@ -63,6 +67,8 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     Button rentbtn;
     RatingBar ratingBar;
     LinearLayout incurred_charge;
+
+    long charge;
 
 
     @Override
@@ -202,7 +208,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
 
     public void onBraintreeSubmit(View v) {
         Intent intent = new Intent(this, BraintreePaymentActivity.class);
-        intent.putExtra(BraintreePaymentActivity.EXTRA_CLIENT_TOKEN, "eyJ2ZXJzaW9uIjoyLCJhdXRob3JpemF0aW9uRmluZ2VycHJpbnQiOiIxN2IzYmU3MjI2NzI2ODRkZTBiZDk4Yjk4NzgyMGYyYWE1NjhkMGUwNGJiNmIwNGJiYmMzY2M2NjBiZjY5MjZlfGNyZWF0ZWRfYXQ9MjAxNS0wNy0xOFQyMzoxMjowMy41MTc0ODk5NjErMDAwMFx1MDAyNm1lcmNoYW50X2lkPWRjcHNweTJicndkanIzcW5cdTAwMjZwdWJsaWNfa2V5PTl3d3J6cWszdnIzdDRuYzgiLCJjb25maWdVcmwiOiJodHRwczovL2FwaS5zYW5kYm94LmJyYWludHJlZWdhdGV3YXkuY29tOjQ0My9tZXJjaGFudHMvZGNwc3B5MmJyd2RqcjNxbi9jbGllbnRfYXBpL3YxL2NvbmZpZ3VyYXRpb24iLCJjaGFsbGVuZ2VzIjpbXSwiZW52aXJvbm1lbnQiOiJzYW5kYm94IiwiY2xpZW50QXBpVXJsIjoiaHR0cHM6Ly9hcGkuc2FuZGJveC5icmFpbnRyZWVnYXRld2F5LmNvbTo0NDMvbWVyY2hhbnRzL2RjcHNweTJicndkanIzcW4vY2xpZW50X2FwaSIsImFzc2V0c1VybCI6Imh0dHBzOi8vYXNzZXRzLmJyYWludHJlZWdhdGV3YXkuY29tIiwiYXV0aFVybCI6Imh0dHBzOi8vYXV0aC52ZW5tby5zYW5kYm94LmJyYWludHJlZWdhdGV3YXkuY29tIiwiYW5hbHl0aWNzIjp7InVybCI6Imh0dHBzOi8vY2xpZW50LWFuYWx5dGljcy5zYW5kYm94LmJyYWludHJlZWdhdGV3YXkuY29tIn0sInRocmVlRFNlY3VyZUVuYWJsZWQiOnRydWUsInRocmVlRFNlY3VyZSI6eyJsb29rdXBVcmwiOiJodHRwczovL2FwaS5zYW5kYm94LmJyYWludHJlZWdhdGV3YXkuY29tOjQ0My9tZXJjaGFudHMvZGNwc3B5MmJyd2RqcjNxbi90aHJlZV9kX3NlY3VyZS9sb29rdXAifSwicGF5cGFsRW5hYmxlZCI6dHJ1ZSwicGF5cGFsIjp7ImRpc3BsYXlOYW1lIjoiQWNtZSBXaWRnZXRzLCBMdGQuIChTYW5kYm94KSIsImNsaWVudElkIjpudWxsLCJwcml2YWN5VXJsIjoiaHR0cDovL2V4YW1wbGUuY29tL3BwIiwidXNlckFncmVlbWVudFVybCI6Imh0dHA6Ly9leGFtcGxlLmNvbS90b3MiLCJiYXNlVXJsIjoiaHR0cHM6Ly9hc3NldHMuYnJhaW50cmVlZ2F0ZXdheS5jb20iLCJhc3NldHNVcmwiOiJodHRwczovL2NoZWNrb3V0LnBheXBhbC5jb20iLCJkaXJlY3RCYXNlVXJsIjpudWxsLCJhbGxvd0h0dHAiOnRydWUsImVudmlyb25tZW50Tm9OZXR3b3JrIjp0cnVlLCJlbnZpcm9ubWVudCI6Im9mZmxpbmUiLCJ1bnZldHRlZE1lcmNoYW50IjpmYWxzZSwiYnJhaW50cmVlQ2xpZW50SWQiOiJtYXN0ZXJjbGllbnQzIiwibWVyY2hhbnRBY2NvdW50SWQiOiJzdGNoMm5mZGZ3c3p5dHc1IiwiY3VycmVuY3lJc29Db2RlIjoiVVNEIn0sImNvaW5iYXNlRW5hYmxlZCI6dHJ1ZSwiY29pbmJhc2UiOnsiY2xpZW50SWQiOiIxMWQyNzIyOWJhNThiNTZkN2UzYzAxYTA1MjdmNGQ1YjQ0NmQ0ZjY4NDgxN2NiNjIzZDI1NWI1NzNhZGRjNTliIiwibWVyY2hhbnRBY2NvdW50IjoiY29pbmJhc2UtZGV2ZWxvcG1lbnQtbWVyY2hhbnRAZ2V0YnJhaW50cmVlLmNvbSIsInNjb3BlcyI6ImF1dGhvcml6YXRpb25zOmJyYWludHJlZSB1c2VyIiwicmVkaXJlY3RVcmwiOiJodHRwczovL2Fzc2V0cy5icmFpbnRyZWVnYXRld2F5LmNvbS9jb2luYmFzZS9vYXV0aC9yZWRpcmVjdC1sYW5kaW5nLmh0bWwiLCJlbnZpcm9ubWVudCI6Im1vY2sifSwibWVyY2hhbnRJZCI6ImRjcHNweTJicndkanIzcW4iLCJ2ZW5tbyI6Im9mZmxpbmUiLCJhcHBsZVBheSI6eyJzdGF0dXMiOiJtb2NrIiwiY291bnRyeUNvZGUiOiJVUyIsImN1cnJlbmN5Q29kZSI6IlVTRCIsIm1lcmNoYW50SWRlbnRpZmllciI6Im1lcmNoYW50LmNvbS5icmFpbnRyZWVwYXltZW50cy5zYW5kYm94LkJyYWludHJlZS1EZW1vIiwic3VwcG9ydGVkTmV0d29ya3MiOlsidmlzYSIsIm1hc3RlcmNhcmQiLCJhbWV4Il19fQ==");
+        intent.putExtra(BraintreePaymentActivity.EXTRA_CLIENT_TOKEN, braintree_token);
         startActivityForResult(intent, BRAINTREE_REQUEST_CODE);
     }
 
@@ -220,6 +226,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         AsyncHttpClient client = new AsyncHttpClient();
         RequestParams params = new RequestParams();
         params.put("payment_method_nonce", paymentMethodNonce);
+        params.put("charge", charge);
         client.post(server_domain + "/payment-methods", params,
                 new AsyncHttpResponseHandler() {
                     @Override
@@ -242,12 +249,38 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     }
     // End of braintree code
 
+    public void startTheActivityInClousure(Date time_created){
+
+        Intent intent = new Intent(this, BraintreePaymentActivity.class);
+        intent.putExtra(BraintreePaymentActivity.EXTRA_CLIENT_TOKEN, braintree_token);
+
+        Date now = new Date();
+        long difference = now.getTime() - time_created.getTime();
+        charge = difference * currently_selected_bike.getLong("rate");
+
+        startActivityForResult(intent, BRAINTREE_REQUEST_CODE);
+
+    }
+
     public void nfcActivity (View view) {
         if (in_rent_mode){
             in_rent_mode = false;
-            Intent intent = new Intent(this, BraintreePaymentActivity.class);
-            intent.putExtra(BraintreePaymentActivity.EXTRA_CLIENT_TOKEN, braintree_token);
-            startActivityForResult(intent, BRAINTREE_REQUEST_CODE);
+
+            ParseQuery<ParseObject> query = ParseQuery.getQuery("bike_rides");
+            query.whereEqualTo("user_id", 1);
+            query.findInBackground(new FindCallback<ParseObject>() {
+                public void done(List<ParseObject> scoreList, ParseException e) {
+                    if (e == null) {
+                        for (ParseObject object : scoreList) {
+                            Date time_created = object.getCreatedAt();
+                            startTheActivityInClousure(time_created);
+                        }
+                    } else {
+                        Log.d("score", "Error: " + e.getMessage());
+                    }
+                }
+            });
+
 
         } else {
             ParseObject bike_rides = new ParseObject("bike_rides");
@@ -266,7 +299,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
 
     }
 
-    private void refreshUIForRentMode(){
+    private void refreshUIForRentMode() {
         rentbtn.setText("End rental");
         ratingBar.setVisibility(View.GONE);
         incurred_charge.setVisibility(View.VISIBLE);
@@ -291,16 +324,16 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
 
     @Override
     public boolean onMarkerClick(Marker marker) {
-        ParseObject current_marker_info = marker_info.get(marker.getTitle());
-        Log.d("hmtesting", current_marker_info.getObjectId());
+        currently_selected_bike = marker_info.get(marker.getTitle());
+        Log.d("hmtesting", currently_selected_bike.getObjectId());
 
-        hourlyRate.setText("$" + current_marker_info.getNumber("rate") + "/hr");
-        review1.setText(current_marker_info.getString("review1"));
-        review2.setText(current_marker_info.getString("review2"));
-        review3.setText(current_marker_info.getString("review3"));
-        review1author.setText(current_marker_info.getString("author1"));
-        review2author.setText(current_marker_info.getString("author2"));
-        review3author.setText(current_marker_info.getString("author3"));
+        hourlyRate.setText("$" + currently_selected_bike.getNumber("rate") + "/hr");
+        review1.setText(currently_selected_bike.getString("review1"));
+        review2.setText(currently_selected_bike.getString("review2"));
+        review3.setText(currently_selected_bike.getString("review3"));
+        review1author.setText(currently_selected_bike.getString("author1"));
+        review2author.setText(currently_selected_bike.getString("author2"));
+        review3author.setText(currently_selected_bike.getString("author3"));
 
 
         if (!peeking_info_pane){
@@ -322,6 +355,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             peeking_info_pane = false;
         }
 
+        currently_selected_bike = null;
     }
 
     public void toggleExpandInfoPane(View view) {
