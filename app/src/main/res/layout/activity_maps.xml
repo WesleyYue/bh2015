@@ -49,8 +49,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:paddingLeft="20dp"
-                    android:paddingTop="10dp"
-                    android:orientation="vertical"
+                    android:paddingTop="14dp"
+                    android:orientation="horizontal"
                     android:visibility="gone"
                     >
                     <TextView
@@ -69,6 +69,8 @@
                         android:layout_height="wrap_content"
                         android:text="so far, at"
                         android:textSize="10sp"
+                        android:paddingTop="15dp"
+                        android:layout_gravity="right"
                         />
                 </LinearLayout>
 
