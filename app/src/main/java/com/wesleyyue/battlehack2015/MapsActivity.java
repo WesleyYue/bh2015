@@ -274,6 +274,11 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                         for (ParseObject object : scoreList) {
                             Date time_created = object.getCreatedAt();
                             startTheActivityInClousure(time_created);
+                            try {
+                                object.delete();
+                            } catch (ParseException e1) {
+                                e1.printStackTrace();
+                            }
                         }
                     } else {
                         Log.d("score", "Error: " + e.getMessage());
