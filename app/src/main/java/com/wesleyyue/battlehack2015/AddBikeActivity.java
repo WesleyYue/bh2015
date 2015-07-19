@@ -102,7 +102,7 @@ public class AddBikeActivity extends Activity {
         return Uri.fromFile(getOutputMediaFile(type));
     }
 
-    private void goToCamera(View view){
+    public void goToCamera(View view){
         Intent camera = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         fileUri = getOutputMediaFileUri(MEDIA_TYPE_IMAGE); // create a file to save the image
         camera.putExtra(MediaStore.EXTRA_OUTPUT, fileUri); // set the image file name
